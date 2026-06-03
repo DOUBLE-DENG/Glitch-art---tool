@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>故障艺术 — Glitch Art Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #f3f4f6;
+      --surface: #ffffff;
+      --border:  #e5e7eb;
+      --divider: #f3f4f6;
+      --text:    #111827;
+      --sub:     #374151;
+      --muted:   #9ca3af;
+      --blue:    #3b82f6;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue",
+                   ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      gap: 20px;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    /* ─── Sidebar ────────────────────────────────────────────────────────── */
+    aside {
+      width: 320px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      max-height: calc(100vh - 48px);
+    }
+
+    .hdr {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hdr h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .hdr h1 span { color: var(--blue); }
+
+    .hdr p {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .panel {
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .section:last-child { border-bottom: none; }
+
+    hr { display: none; }
+
+    .sec {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    /* ─── Buttons ─────────────────────────────────────────────────────────── */
+    .btn-white {
+      width: 100%;
+      padding: 10px 14px;
+      background: #111827;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-white:hover { background: #374151; }
+
+    .btn-ghost {
+      padding: 8px 14px;
+      background: #f3f4f6;
+      border: none;
+      color: #374151;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-ghost:hover { background: #e5e7eb; }
+
+    .btn-exp {
+      flex: 1;
+      padding: 10px 0;
+      background: #111827;
+      border: none;
+      color: #fff;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .btn-exp:not(:disabled):hover { background: #374151; }
+    .btn-exp:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ─── Color picker ───────────────────────────────────────────────────── */
+    .color-row { display: flex; justify-content: space-between; align-items: center; }
+    .color-row label { font-size: 14px; color: var(--sub); cursor: pointer; }
+    input[type=color] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 36px; height: 26px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      padding: 2px;
+    }
+    input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type=color]::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+    /* ─── Sliders ─────────────────────────────────────────────────────────── */
+    .sl { display: flex; flex-direction: column; gap: 6px; }
+    .sl-top { display: flex; justify-content: space-between; align-items: center; }
+    .sl-top label { font-size: 14px; color: var(--sub); }
+    .sl-top .v {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type=range] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #e5e7eb;
+      border-radius: 999px;
+      cursor: pointer;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #111827;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #111827;
+      border: none;
+    }
+
+    /* ─── Radios ──────────────────────────────────────────────────────────── */
+    .radio-grp { display: flex; flex-direction: column; gap: 8px; }
+    .ropt { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .ropt input[type=radio] {
+      accent-color: #000;
+      width: 14px; height: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .ropt span { font-size: 14px; color: var(--sub); }
+
+    /* ─── Checkboxes ──────────────────────────────────────────────────────── */
+    input[type=checkbox] {
+      accent-color: #000;
+      width: 15px; height: 15px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ─── Seed ────────────────────────────────────────────────────────────── */
+    .seed-row { display: flex; gap: 8px; align-items: center; }
+    #seed-input {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      padding: 8px 12px;
+      outline: none;
+      background: #fff;
+      transition: border-color 0.15s;
+    }
+    #seed-input:focus { border-color: #9ca3af; box-shadow: 0 0 0 3px rgba(156,163,175,0.15); }
+
+    /* ─── Canvas area ─────────────────────────────────────────────────────── */
+    main {
+      flex: 1;
+      min-width: 0;
+      background: var(--bg);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      padding: 24px;
+    }
+
+    #canvas {
+      display: none;
+      image-rendering: auto;
+    }
+    #canvas.rendering {
+      opacity: 0.55;
+      transition: opacity 0.08s ease;
+    }
+
+    /* Light checkerboard for transparent preview */
+    #canvas.alpha-preview {
+      background-color: #e5e7eb;
+      background-image:
+        linear-gradient(45deg, #d1d5db 25%, transparent 25%),
+        linear-gradient(-45deg, #d1d5db 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #d1d5db 75%),
+        linear-gradient(-45deg, transparent 75%, #d1d5db 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      user-select: none;
+      pointer-events: none;
+    }
+    .empty-glyph {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      opacity: 0.8;
+    }
+    .empty p { font-size: 14px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside>
+  <div class="hdr">
+    <h1>Glitch <span>Art</span></h1>
+    <p>Pixel Slice Displacement · 故障艺术生成器</p>
+  </div>
+
+  <div class="panel">
+
+    <!-- Image -->
+    <div class="section">
+      <div class="sec">图像 Image</div>
+      <input type="file" id="file-in" accept="image/*" style="display:none">
+      <button class="btn-white" onclick="document.getElementById('file-in').click()">
+        上传图片
+      </button>
+    </div>
+
+    <!-- Zoom -->
+    <div class="section">
+      <div class="sec">预览缩放 Zoom</div>
+      <div class="sl">
+        <div class="sl-top">
+          <label for="sl-z">缩放比例</label>
+          <span class="v" id="vz">100%</span>
+        </div>
+        <input type="range" id="sl-z" min="10" max="300" value="100">
+      </div>
+    </div>
+
+    <!-- Parameters -->
+    <div class="section">
+      <div class="sec">故障参数 Parameters</div>
+
+      <div class="sl">
+        <div class="sl-top">
+          <label for="sl-d">密度 Density</label>
+          <span class="v" id="vd">15%</span>
+        </div>
+        <input type="range" id="sl-d" min="1" max="50" value="15">
+      </div>
+
+      <div class="sl">
+        <div class="sl-top">
+          <label for="sl-s">最大拉伸 Max Stretch</label>
+          <span class="v" id="vs">200 px</span>
+        </div>
+        <input type="range" id="sl-s" min="1" max="800" value="200">
+      </div>
+
+      <div class="sl">
+        <div class="sl-top">
+          <label for="sl-t">条纹粗细 Thickness</label>
+          <span class="v" id="vt">1 px</span>
+        </div>
+        <input type="range" id="sl-t" min="1" max="60" value="1">
+      </div>
+
+      <div class="color-row">
+        <label for="fill-color">填充颜色 Fill</label>
+        <input type="color" id="fill-color" value="#000000">
+      </div>
+
+      <label class="color-row">
+        <span style="font-size:14px;color:var(--sub)">透明填充 Transparent</span>
+        <input type="checkbox" id="fill-transparent">
+      </label>
+
+      <label class="color-row">
+        <span style="font-size:14px;color:var(--sub)">自动扩展画布 Auto-expand</span>
+        <input type="checkbox" id="canvas-expand" checked>
+      </label>
+
+    </div>
+
+    <!-- Direction -->
+    <div class="section">
+      <div class="sec">方向 Direction</div>
+      <div class="radio-grp">
+        <label class="ropt">
+          <input type="radio" name="dir" value="h" checked>
+          <span>水平拉伸 Horizontal</span>
+        </label>
+        <label class="ropt">
+          <input type="radio" name="dir" value="b">
+          <span>水平双向 Horizontal Both</span>
+        </label>
+        <label class="ropt">
+          <input type="radio" name="dir" value="hm">
+          <span>水平中心 Horizontal Center</span>
+        </label>
+        <label class="ropt">
+          <input type="radio" name="dir" value="v">
+          <span>垂直拉伸 Vertical</span>
+        </label>
+        <label class="ropt">
+          <input type="radio" name="dir" value="vb">
+          <span>垂直双向 Vertical Both</span>
+        </label>
+        <label class="ropt">
+          <input type="radio" name="dir" value="vc">
+          <span>垂直中心 Vertical Center</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Center band (only for hm / vc) -->
+    <div class="section" id="band-section" style="display:none">
+      <div class="sec">中心范围 Center Band</div>
+      <div class="sl">
+        <div class="sl-top">
+          <label for="sl-band">中心区域宽度</label>
+          <span class="v" id="vband">60%</span>
+        </div>
+        <input type="range" id="sl-band" min="10" max="100" value="60">
+      </div>
+    </div>
+
+    <!-- Seed -->
+    <div class="section">
+      <div class="sec">随机种子 Seed</div>
+      <div class="seed-row">
+        <input type="number" id="seed-input" min="0" max="99999" value="42">
+        <button class="btn-ghost" onclick="rndSeed()">🎲 随机</button>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="section">
+      <div class="sec">导出 Export</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-exp" id="btn-png" disabled onclick="exportAs('png')">导出 PNG</button>
+        <button class="btn-exp" id="btn-jpg" disabled onclick="exportAs('jpg')">导出 JPG</button>
+      </div>
+    </div>
+
+  </div>
+</aside>
+
+<!-- ── Canvas area ── -->
+<main>
+  <div class="empty" id="empty">
+    <div class="empty-glyph">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </div>
+    <p>上传图片以开始创作</p>
+  </div>
+  <canvas id="canvas"></canvas>
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// LCG pseudo-random number generator (Park-Miller, m = 2^31 − 1)
+// float64 multiplication is exact for s < 2^31 and a = 48271 (product < 2^53)
+// ─────────────────────────────────────────────────────────────────────────────
+function prng(seed) {
+  let s = (seed >>> 0) || 1;          // ensure positive non-zero
+  return function () {
+    s = (s * 48271) % 2147483647;
+    return s / 2147483647;            // [0, 1)
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let srcBuf = null;    // Uint8ClampedArray, original RGBA
+let srcW = 0, srcH = 0;
+let thumbBuf = null;  // downsampled preview buffer (for fast drag feedback)
+let thumbW = 0, thumbH = 0;
+let thumbScale = 1;   // srcW / thumbW — zoom factor to restore apparent size
+let isDragging = false;
+let scheduleRaf = null;
+let renderSeq   = 0;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('file-in').addEventListener('change', function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = function () {
+    URL.revokeObjectURL(url);
+    const oc = document.createElement('canvas');
+    oc.width  = img.naturalWidth;
+    oc.height = img.naturalHeight;
+    oc.getContext('2d').drawImage(img, 0, 0);
+
+    // Store a fresh copy of the pixel data (independent of the off-screen canvas)
+    const id = oc.getContext('2d').getImageData(0, 0, oc.width, oc.height);
+    srcBuf = new Uint8ClampedArray(id.data);
+    srcW   = oc.width;
+    srcH   = oc.height;
+
+    makeThumbnail();   // build downsampled preview buffer
+    getWorker();       // pre-warm the worker thread
+
+    document.getElementById('btn-png').disabled = false;
+    document.getElementById('btn-jpg').disabled = false;
+    go();
+  };
+  img.src = url;
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Controls → re-render
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('sl-d').addEventListener('input', function () {
+  document.getElementById('vd').textContent = this.value + '%';
+  schedule();
+});
+document.getElementById('sl-s').addEventListener('input', function () {
+  document.getElementById('vs').textContent = this.value + ' px';
+  schedule();
+});
+document.getElementById('sl-t').addEventListener('input', function () {
+  document.getElementById('vt').textContent = this.value + ' px';
+  schedule();
+});
+document.getElementById('fill-color').addEventListener('input', schedule);
+document.getElementById('fill-transparent').addEventListener('change', function () {
+  document.getElementById('canvas').classList.toggle('alpha-preview', this.checked);
+  schedule();
+});
+document.getElementById('sl-z').addEventListener('input', function () {
+  document.getElementById('vz').textContent = this.value + '%';
+  applyZoom();
+});
+
+function applyZoom() {
+  const cv  = document.getElementById('canvas');
+  if (!cv.width) return;
+  const z = (+document.getElementById('sl-z').value) / 100;
+  cv.style.width  = Math.round(cv.width * z) + 'px';
+  cv.style.height = Math.round(cv.height * z) + 'px';
+}
+
+document.getElementById('sl-band').addEventListener('input', function () {
+  document.getElementById('vband').textContent = this.value + '%';
+  schedule();
+});
+
+document.querySelectorAll('input[name=dir]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    const dir = document.querySelector('input[name=dir]:checked').value;
+    document.getElementById('band-section').style.display =
+      (dir === 'hm' || dir === 'vc') ? 'flex' : 'none';
+    schedule();
+  });
+});
+document.getElementById('seed-input').addEventListener('input', schedule);
+document.getElementById('canvas-expand').addEventListener('change', schedule);
+
+// Drag tracking: quick thumb renders while dragging, full render on release
+['sl-d', 'sl-s', 'sl-t', 'sl-band'].forEach(function (id) {
+  const el = document.getElementById(id);
+  el.addEventListener('pointerdown', function () { isDragging = true; });
+  el.addEventListener('pointerup',   function () { isDragging = false; go(); });
+  el.addEventListener('pointercancel', function () { isDragging = false; });
+});
+
+function schedule() {
+  if (scheduleRaf) cancelAnimationFrame(scheduleRaf);
+  scheduleRaf = requestAnimationFrame(function () { scheduleRaf = null; go(); });
+}
+
+function rndSeed() {
+  document.getElementById('seed-input').value = Math.floor(Math.random() * 100000);
+  schedule();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Core glitch algorithm
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @param {Uint8ClampedArray} src   - original RGBA buffer
+ * @param {number} w                - image width
+ * @param {number} h                - image height
+ * @param {number} density          - 1–50 (% of rows/cols selected)
+ * @param {number} maxPx            - maximum shift in pixels
+ * @param {number} thick            - stripe thickness in pixels (1–60)
+ * @param {string} dir              - 'h' | 'b' | 'hm' | 'v' | 'vb' | 'vc'
+ * @param {number} seed             - integer seed
+ * @param {number} fillR            - fill colour R (0-255)
+ * @param {number} fillG            - fill colour G (0-255)
+ * @param {number} fillB            - fill colour B (0-255)
+ * @param {boolean} fillAlpha       - true = transparent fill
+ * @param {boolean} keepSize        - true = clip to original dimensions; false = expand canvas
+ * @param {number} centerBand       - 10–100: % of image height/width that is the active center zone
+ * @returns {{ data: Uint8ClampedArray, width: number, height: number }}
+ */
+function glitch(src, w, h, density, maxPx, thick, dir, seed, fillR, fillG, fillB, fillAlpha, keepSize, centerBand) {
+  const dPct = density / 100;
+
+  // ── Pass 1: dry-run PRNG to find how far pixels extend in each direction ──
+  // Skipped when keepSize=true — extension stays 0 in all directions.
+  let extLeft = 0, extRight = 0, extTop = 0, extBottom = 0;
+
+  if (!keepSize) {
+    if (dir === 'h' || dir === 'b') {
+      const rand1 = prng(seed ^ 0x1A2B);
+      for (let y = 0; y < h; y += thick) {
+        if (rand1() > dPct) continue;
+        const mag = 1 + Math.floor(rand1() * maxPx);
+        const off = (dir === 'b' && rand1() < 0.5) ? -mag : mag;
+        if (off > 0) extRight  = Math.max(extRight,  off);
+        else         extLeft   = Math.max(extLeft,   -off);
+      }
+    }
+
+    // Horizontal center: only the middle 60% of rows are displaced
+    if (dir === 'hm') {
+      const rand1 = prng(seed ^ 0x5E6F);
+      const bandFrac = centerBand / 100;
+      const bandY0 = h * (1 - bandFrac) / 2;
+      const bandY1 = h * (1 + bandFrac) / 2;
+      for (let y = 0; y < h; y += thick) {
+        if (rand1() > dPct) continue;
+        const mag = 1 + Math.floor(rand1() * maxPx);
+        if (y < bandY0 || y >= bandY1) continue;   // edge band — skip, but RNG already consumed
+        const off = (y < h / 2) ? -mag : mag;
+        if (off > 0) extRight = Math.max(extRight,  off);
+        else         extLeft  = Math.max(extLeft,   -off);
+      }
+    }
+
+    if (dir === 'v' || dir === 'vb') {
+      const rand1 = prng(seed ^ 0x3C4D);
+      for (let x = 0; x < w; x += thick) {
+        if (rand1() > dPct) continue;
+        const mag = 1 + Math.floor(rand1() * maxPx);
+        const off = (dir === 'vb' && rand1() < 0.5) ? -mag : mag;
+        if (off > 0) extBottom = Math.max(extBottom, off);
+        else         extTop    = Math.max(extTop,    -off);
+      }
+    }
+
+    // Vertical center: only the middle 60% of columns are displaced
+    if (dir === 'vc') {
+      const rand1 = prng(seed ^ 0x7A8B);
+      const bandFrac = centerBand / 100;
+      const bandX0 = w * (1 - bandFrac) / 2;
+      const bandX1 = w * (1 + bandFrac) / 2;
+      for (let x = 0; x < w; x += thick) {
+        if (rand1() > dPct) continue;
+        const mag = 1 + Math.floor(rand1() * maxPx);
+        if (x < bandX0 || x >= bandX1) continue;   // edge band — skip, but RNG already consumed
+        const off = (x < w / 2) ? -mag : mag;
+        if (off > 0) extBottom = Math.max(extBottom, off);
+        else         extTop    = Math.max(extTop,    -off);
+      }
+    }
+  }
+
+  // ── Allocate expanded output buffer ───────────────────────────────────────
+  const newW    = w + extLeft + extRight;
+  const newH    = h + extTop  + extBottom;
+  const originX = extLeft;   // where the original image starts in the new canvas
+  const originY = extTop;
+
+  const dst = new Uint8ClampedArray(newW * newH * 4);
+
+  // Fill entire buffer with fill colour (or leave as transparent zeros)
+  if (!fillAlpha) {
+    for (let i = 0; i < dst.length; i += 4) {
+      dst[i] = fillR; dst[i+1] = fillG; dst[i+2] = fillB; dst[i+3] = 255;
+    }
+  }
+  // (if fillAlpha, Uint8ClampedArray is already zeroed — transparent)
+
+  // Copy source image into expanded buffer at (originX, originY)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const si = (y * w + x) * 4;
+      const di = ((originY + y) * newW + (originX + x)) * 4;
+      dst[di]   = src[si];   dst[di+1] = src[si+1];
+      dst[di+2] = src[si+2]; dst[di+3] = src[si+3];
+    }
+  }
+
+  // ── Pass 2: apply glitch into expanded buffer ─────────────────────────────
+
+  // Horizontal / Bidirectional: shift selected ROW-BANDS
+  if (dir === 'h' || dir === 'b') {
+    const rand = prng(seed ^ 0x1A2B);
+    for (let y = 0; y < h; y += thick) {
+      if (rand() > dPct) continue;
+      const mag = 1 + Math.floor(rand() * maxPx);
+      const off = (dir === 'b' && rand() < 0.5) ? -mag : mag;
+
+      for (let dy = 0; dy < thick && y + dy < h; dy++) {
+        const row     = y + dy;
+        const newRow  = originY + row;
+        const newBase = newRow * newW * 4;
+
+        // 1. Clear the original image columns in this expanded row
+        for (let x = 0; x < w; x++) {
+          const i = newBase + (originX + x) * 4;
+          if (fillAlpha) {
+            dst[i] = 0; dst[i+1] = 0; dst[i+2] = 0; dst[i+3] = 0;
+          } else {
+            dst[i] = fillR; dst[i+1] = fillG; dst[i+2] = fillB; dst[i+3] = 255;
+          }
+        }
+
+        // 2. Copy pixels from src shifted by off — bounds check handles both
+        //    keepSize (clip) and auto-expand (always in-bounds by construction)
+        for (let x = 0; x < w; x++) {
+          const destCol = originX + x + off;
+          if (destCol < 0 || destCol >= newW) continue;
+          const si = (row * w + x) * 4;
+          const di = newBase + destCol * 4;
+          dst[di]   = src[si];   dst[di+1] = src[si+1];
+          dst[di+2] = src[si+2]; dst[di+3] = src[si+3];
+        }
+      }
+    }
+  }
+
+  // Horizontal Center: only middle 60% of rows displaced; top/bottom 20% stay intact
+  if (dir === 'hm') {
+    const rand = prng(seed ^ 0x5E6F);
+    const bandFrac = centerBand / 100;
+    const bandY0 = h * (1 - bandFrac) / 2;
+    const bandY1 = h * (1 + bandFrac) / 2;
+    for (let y = 0; y < h; y += thick) {
+      if (rand() > dPct) continue;
+      const mag = 1 + Math.floor(rand() * maxPx);
+      if (y < bandY0 || y >= bandY1) continue;   // edge band — RNG already consumed, skip render
+
+      const off = (y < h / 2) ? -mag : mag;
+
+      for (let dy = 0; dy < thick && y + dy < h; dy++) {
+        const row     = y + dy;
+        const newRow  = originY + row;
+        const newBase = newRow * newW * 4;
+
+        for (let x = 0; x < w; x++) {
+          const i = newBase + (originX + x) * 4;
+          if (fillAlpha) {
+            dst[i] = 0; dst[i+1] = 0; dst[i+2] = 0; dst[i+3] = 0;
+          } else {
+            dst[i] = fillR; dst[i+1] = fillG; dst[i+2] = fillB; dst[i+3] = 255;
+          }
+        }
+
+        for (let x = 0; x < w; x++) {
+          const destCol = originX + x + off;
+          if (destCol < 0 || destCol >= newW) continue;
+          const si = (row * w + x) * 4;
+          const di = newBase + destCol * 4;
+          dst[di]   = src[si];   dst[di+1] = src[si+1];
+          dst[di+2] = src[si+2]; dst[di+3] = src[si+3];
+        }
+      }
+    }
+  }
+
+  // Vertical / Vertical-Both: shift selected COLUMN-BANDS
+  if (dir === 'v' || dir === 'vb') {
+    const rand = prng(seed ^ 0x3C4D);
+    for (let x = 0; x < w; x += thick) {
+      if (rand() > dPct) continue;
+      const mag = 1 + Math.floor(rand() * maxPx);
+      const off = (dir === 'vb' && rand() < 0.5) ? -mag : mag;
+
+      for (let dx = 0; dx < thick && x + dx < w; dx++) {
+        const col    = x + dx;
+        const newCol = originX + col;
+
+        // 1. Clear the original image rows in this expanded column
+        for (let y = 0; y < h; y++) {
+          const i = ((originY + y) * newW + newCol) * 4;
+          if (fillAlpha) {
+            dst[i] = 0; dst[i+1] = 0; dst[i+2] = 0; dst[i+3] = 0;
+          } else {
+            dst[i] = fillR; dst[i+1] = fillG; dst[i+2] = fillB; dst[i+3] = 255;
+          }
+        }
+
+        // 2. Copy pixels from src shifted by off — bounds check handles both
+        //    keepSize (clip) and auto-expand (always in-bounds by construction)
+        for (let y = 0; y < h; y++) {
+          const destRow = originY + y + off;
+          if (destRow < 0 || destRow >= newH) continue;
+          const si = (y * w + col) * 4;
+          const di = (destRow * newW + newCol) * 4;
+          dst[di]   = src[si];   dst[di+1] = src[si+1];
+          dst[di+2] = src[si+2]; dst[di+3] = src[si+3];
+        }
+      }
+    }
+  }
+
+  // Vertical Center: only middle 60% of columns displaced; left/right 20% stay intact
+  if (dir === 'vc') {
+    const rand = prng(seed ^ 0x7A8B);
+    const bandFrac = centerBand / 100;
+    const bandX0 = w * (1 - bandFrac) / 2;
+    const bandX1 = w * (1 + bandFrac) / 2;
+    for (let x = 0; x < w; x += thick) {
+      if (rand() > dPct) continue;
+      const mag = 1 + Math.floor(rand() * maxPx);
+      if (x < bandX0 || x >= bandX1) continue;   // edge band — RNG already consumed, skip render
+
+      const off = (x < w / 2) ? -mag : mag;
+
+      for (let dx = 0; dx < thick && x + dx < w; dx++) {
+        const col    = x + dx;
+        const newCol = originX + col;
+
+        for (let y = 0; y < h; y++) {
+          const i = ((originY + y) * newW + newCol) * 4;
+          if (fillAlpha) {
+            dst[i] = 0; dst[i+1] = 0; dst[i+2] = 0; dst[i+3] = 0;
+          } else {
+            dst[i] = fillR; dst[i+1] = fillG; dst[i+2] = fillB; dst[i+3] = 255;
+          }
+        }
+
+        for (let y = 0; y < h; y++) {
+          const destRow = originY + y + off;
+          if (destRow < 0 || destRow >= newH) continue;
+          const si = (y * w + col) * 4;
+          const di = (destRow * newW + newCol) * 4;
+          dst[di]   = src[si];   dst[di+1] = src[si+1];
+          dst[di+2] = src[si+2]; dst[di+3] = src[si+3];
+        }
+      }
+    }
+  }
+
+  return { data: dst, width: newW, height: newH };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Thumbnail builder — downsamples source to ≤480px for fast drag previews
+// ─────────────────────────────────────────────────────────────────────────────
+function makeThumbnail() {
+  const MAX = 480;
+  const ratio = Math.min(1, MAX / Math.max(srcW, srcH));
+  if (ratio >= 1) {
+    // Image is already small — thumb === source
+    thumbBuf   = srcBuf;
+    thumbW     = srcW;
+    thumbH     = srcH;
+    thumbScale = 1;
+    return;
+  }
+  thumbW = Math.max(1, Math.round(srcW * ratio));
+  thumbH = Math.max(1, Math.round(srcH * ratio));
+  thumbScale = srcW / thumbW;  // multiply thumb px by this to get back source scale
+
+  // Draw full-res onto a smaller canvas (browser bilinear) → grab pixels
+  const full = document.createElement('canvas');
+  full.width = srcW; full.height = srcH;
+  full.getContext('2d').putImageData(
+    new ImageData(new Uint8ClampedArray(srcBuf), srcW, srcH), 0, 0);
+
+  const small = document.createElement('canvas');
+  small.width = thumbW; small.height = thumbH;
+  small.getContext('2d').drawImage(full, 0, 0, thumbW, thumbH);
+  thumbBuf = new Uint8ClampedArray(
+    small.getContext('2d').getImageData(0, 0, thumbW, thumbH).data);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Off-thread renderer — keeps the main thread free while dragging sliders
+// ─────────────────────────────────────────────────────────────────────────────
+let _worker = null;
+
+function getWorker() {
+  if (_worker) return _worker;
+
+  // Serialize the two pure functions into the worker blob so there are no imports
+  const src =
+    prng.toString() + '\n' +
+    glitch.toString() + '\n' +
+    'self.onmessage=function(e){' +
+      'var d=e.data;' +
+      'var r=glitch(new Uint8ClampedArray(d.srcBuf),d.w,d.h,d.density,d.maxPx,d.thick,d.dir,d.seed,d.fillR,d.fillG,d.fillB,d.fillAlpha,d.keepSize,d.centerBand);' +
+      'self.postMessage({id:d.id,buf:r.data.buffer,w:r.width,h:r.height,isThumb:d.isThumb,ts:d.thumbScale},[r.data.buffer]);' +
+    '};';
+
+  _worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+
+  _worker.onmessage = function (e) {
+    if (e.data.id !== renderSeq) return;   // stale result from a superseded render — discard
+    const { buf, w, h, isThumb, ts } = e.data;
+    const cv = document.getElementById('canvas');
+    cv.width  = w;
+    cv.height = h;
+    cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(buf), w, h), 0, 0);
+    cv.classList.toggle('alpha-preview', document.getElementById('fill-transparent').checked);
+    cv.classList.remove('rendering');
+    cv.style.display = 'block';
+    document.getElementById('empty').style.display = 'none';
+    if (isThumb && ts > 1) {
+      // Scale thumb canvas up so it appears at full source size
+      const z = (+document.getElementById('sl-z').value) / 100;
+      cv.style.width  = Math.round(w * ts * z) + 'px';
+      cv.style.height = Math.round(h * ts * z) + 'px';
+    } else {
+      applyZoom();
+    }
+  };
+
+  return _worker;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Render
+// ─────────────────────────────────────────────────────────────────────────────
+function go() {
+  if (!srcBuf) return;
+
+  const density    = +document.getElementById('sl-d').value;
+  const maxPx      = +document.getElementById('sl-s').value;
+  const thick      = +document.getElementById('sl-t').value || 1;
+  const dir        = document.querySelector('input[name=dir]:checked').value;
+  const seed       = +(document.getElementById('seed-input').value) || 0;
+
+  const hex        = document.getElementById('fill-color').value;
+  const fillR      = parseInt(hex.slice(1,3), 16);
+  const fillG      = parseInt(hex.slice(3,5), 16);
+  const fillB      = parseInt(hex.slice(5,7), 16);
+  const fillAlpha  = document.getElementById('fill-transparent').checked;
+  const keepSize   = !document.getElementById('canvas-expand').checked;
+  const centerBand = +document.getElementById('sl-band').value;
+
+  // During active drag, use the downsampled thumbnail for a fast blurry preview;
+  // the full-res render fires automatically on pointerup.
+  const useThumb = isDragging && thumbBuf !== null && thumbW < srcW;
+  const buf  = useThumb ? thumbBuf : srcBuf;
+  const rW   = useThumb ? thumbW   : srcW;
+  const rH   = useThumb ? thumbH   : srcH;
+  // Scale maxPx proportionally so the glitch "looks" the same size on the thumb
+  const adjMaxPx = useThumb ? Math.max(1, Math.round(maxPx / thumbScale)) : maxPx;
+  const adjThick = useThumb ? Math.max(1, Math.round(thick / thumbScale)) : thick;
+
+  // Dim the canvas to signal a render is in-flight
+  document.getElementById('canvas').classList.add('rendering');
+
+  // Transfer a copy of the buffer (zero-copy slice, original stays intact)
+  const srcCopy = buf.buffer.slice(0);
+  getWorker().postMessage(
+    { id: ++renderSeq, srcBuf: srcCopy, w: rW, h: rH,
+      density, maxPx: adjMaxPx, thick: adjThick, dir, seed,
+      fillR, fillG, fillB, fillAlpha, keepSize, centerBand,
+      isThumb: useThumb, thumbScale },
+    [srcCopy]
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export
+// ─────────────────────────────────────────────────────────────────────────────
+function exportAs(type) {
+  const cv = document.getElementById('canvas');
+  if (!cv.width) return;
+
+  // For JPEG, flatten onto a solid black background first
+  let target = cv;
+  if (type === 'jpg') {
+    const tmp = document.createElement('canvas');
+    tmp.width  = cv.width;
+    tmp.height = cv.height;
+    const ctx  = tmp.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, tmp.width, tmp.height);
+    ctx.drawImage(cv, 0, 0);
+    target = tmp;
+  }
+
+  const a = document.createElement('a');
+  a.href     = target.toDataURL(type === 'png' ? 'image/png' : 'image/jpeg', 0.93);
+  a.download = 'glitch.' + type;
+  a.click();
+}
+</script>
+
+</body>
+</html>
